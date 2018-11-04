@@ -9,7 +9,7 @@ import tensorflow as tf
 
 class Policy(object):
     """ NN-based policy approximation """
-    def __init__(self, obs_dim, act_dim, kl_targ, hid1_mult, policy_logvar, clipping_range=None):
+    def __init__(self, obs_dim, act_dim, kl_targ, hid1_mult, policy_logvar, seed, clipping_range=None):
         """
         Args:
             obs_dim: num observation dimensions (int)
@@ -23,6 +23,7 @@ class Policy(object):
         self.kl_targ = kl_targ
         self.hid1_mult = hid1_mult
         self.policy_logvar = policy_logvar
+        self.seed = seed
         self.epochs = 20
         self.lr = None
         self.lr_multiplier = 1.0  # dynamically adjust lr when D_KL out of control
@@ -36,6 +37,7 @@ class Policy(object):
         """ Build and initialize TensorFlow graph """
         self.g = tf.Graph()
         with self.g.as_default():
+            tf.set_random_seed(self.seed)
             self._placeholders()
             self._policy_nn()
             self._logprob()

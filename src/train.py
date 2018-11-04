@@ -28,6 +28,7 @@ the MuJoCo control tasks.
 import gym
 import numpy as np
 from gym import wrappers
+import random
 from policy import Policy
 from value_function import NNValueFunction
 import scipy.signal
@@ -67,6 +68,12 @@ def init_gym(env_name):
     act_dim = env.action_space.shape[0]
 
     return env, obs_dim, act_dim
+
+
+def set_global_seed(seed, env):
+    np.random.seed(seed)
+    env.seed(seed)
+    random.seed(seed)
 
 
 def run_episode(env, policy, scaler, animate=False):
@@ -260,7 +267,7 @@ def log_batch_stats(observes, actions, advantages, disc_sum_rew, logger, episode
                 })
 
 
-def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, hid1_mult, policy_logvar):
+def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, hid1_mult, policy_logvar, seed):
     """ Main training loop
 
     Args:
@@ -275,14 +282,16 @@ def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, hid1_mult, pol
     """
     killer = GracefulKiller()
     env, obs_dim, act_dim = init_gym(env_name)
+    set_global_seed(seed, env)
     obs_dim += 1  # add 1 to obs dimension for time step feature (see run_episode())
     now = datetime.utcnow().strftime("%b-%d_%H:%M:%S")  # create unique directories
+    now = "seed_{}_time_".format(seed) + now 
     logger = Logger(logname=env_name, now=now)
-    aigym_path = os.path.join('/tmp', env_name, now)
-    env = wrappers.Monitor(env, aigym_path, force=True)
+    # aigym_path = os.path.join('/tmp', env_name, now)
+    # env = wrappers.Monitor(env, aigym_path, force=True)
     scaler = Scaler(obs_dim)
-    val_func = NNValueFunction(obs_dim, hid1_mult)
-    policy = Policy(obs_dim, act_dim, kl_targ, hid1_mult, policy_logvar)
+    val_func = NNValueFunction(obs_dim, hid1_mult, seed)
+    policy = Policy(obs_dim, act_dim, kl_targ, hid1_mult, policy_logvar, seed)
     # run a few episodes of untrained policy to initialize scaler:
     run_policy(env, policy, scaler, logger, episodes=5)
     episode = 0
@@ -329,6 +338,7 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--policy_logvar', type=float,
                         help='Initial policy log-variance (natural log of variance)',
                         default=-1.0)
-
+    parser.add_argument('-s', '--seed', type=int, 
+                        help='Random seed for all randomness', default=0)
     args = parser.parse_args()
     main(**vars(args))

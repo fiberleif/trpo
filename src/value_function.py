@@ -11,7 +11,7 @@ from sklearn.utils import shuffle
 
 class NNValueFunction(object):
     """ NN-based state-value function """
-    def __init__(self, obs_dim, hid1_mult):
+    def __init__(self, obs_dim, hid1_mult, seed):
         """
         Args:
             obs_dim: number of dimensions in observation vector (int)
@@ -21,6 +21,7 @@ class NNValueFunction(object):
         self.replay_buffer_y = None
         self.obs_dim = obs_dim
         self.hid1_mult = hid1_mult
+        self.seed = seed
         self.epochs = 10
         self.lr = None  # learning rate set in _build_graph()
         self._build_graph()
@@ -31,6 +32,7 @@ class NNValueFunction(object):
         """ Construct TensorFlow graph, including loss function, init op and train op """
         self.g = tf.Graph()
         with self.g.as_default():
+            tf.set_random_seed(self.seed)
             self.obs_ph = tf.placeholder(tf.float32, (None, self.obs_dim), 'obs_valfunc')
             self.val_ph = tf.placeholder(tf.float32, (None,), 'val_valfunc')
             # hid1 layer size is 10x obs_dim, hid3 size is 10, and hid2 is geometric mean
