@@ -151,7 +151,7 @@ def run_policy(env, policy, scaler, logger, episodes):
     logger.log({'_MeanReward': np.mean([t['rewards'].sum() for t in trajectories]),
                 'Steps': total_steps})
 
-    return trajectories
+    return trajectories, total_steps
 
 
 def discount(x, gamma):
@@ -245,7 +245,7 @@ def build_train_set(trajectories):
     return observes, actions, advantages, disc_sum_rew
 
 
-def log_batch_stats(observes, actions, advantages, disc_sum_rew, logger, episode):
+def log_batch_stats(observes, actions, advantages, disc_sum_rew, logger, episode, total_steps):
     """ Log various batch statistics """
     logger.log({'_mean_obs': np.mean(observes),
                 '_min_obs': np.min(observes),
@@ -263,7 +263,8 @@ def log_batch_stats(observes, actions, advantages, disc_sum_rew, logger, episode
                 '_min_discrew': np.min(disc_sum_rew),
                 '_max_discrew': np.max(disc_sum_rew),
                 '_std_discrew': np.var(disc_sum_rew),
-                '_Episode': episode
+                '_Episode': episode,
+                'Totalstep': total_steps,
                 })
 
 
@@ -295,16 +296,18 @@ def main(env_name, num_episodes, gamma, lam, kl_targ, batch_size, hid1_mult, pol
     # run a few episodes of untrained policy to initialize scaler:
     run_policy(env, policy, scaler, logger, episodes=5)
     episode = 0
+    total_steps = 0
     while episode < num_episodes:
-        trajectories = run_policy(env, policy, scaler, logger, episodes=batch_size)
+        trajectories, steps = run_policy(env, policy, scaler, logger, episodes=batch_size)
         episode += len(trajectories)
+        total_steps += steps
         add_value(trajectories, val_func)  # add estimated values to episodes
         add_disc_sum_rew(trajectories, gamma)  # calculated discounted sum of Rs
         add_gae(trajectories, gamma, lam)  # calculate advantage
         # concatenate all episodes into single NumPy arrays
         observes, actions, advantages, disc_sum_rew = build_train_set(trajectories)
         # add various stats to training log:
-        log_batch_stats(observes, actions, advantages, disc_sum_rew, logger, episode)
+        log_batch_stats(observes, actions, advantages, disc_sum_rew, logger, episode, total_steps)
         policy.update(observes, actions, advantages, logger)  # update policy
         val_func.fit(observes, disc_sum_rew, logger)  # update value function
         logger.write(display=True)  # write logger results to file and stdout
